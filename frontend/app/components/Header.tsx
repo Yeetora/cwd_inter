@@ -58,10 +58,13 @@ export default function Header() {
   const [projectOpen, setProjectOpen] = useState(false);
   const [hidden, setHidden] = useState(false);
 
+  /* eslint-disable react-hooks/set-state-in-effect */
+  // 경로 변경 시 모바일 메뉴 닫기 — 정당한 케이스
   useEffect(() => {
     setOpen(false);
     setProjectOpen(false);
   }, [pathname]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   useEffect(() => {
     document.body.style.overflow = open ? "hidden" : "";
