@@ -1,44 +1,131 @@
 #!/bin/bash
-# 채우다 EC2 부트스트랩 스크립트 (Amazon Linux 2023 ARM64 기준)
-# 실행 시점: EC2 최초 부팅 1회
-# 이 스크립트는 패키지 설치까지만 담당. 애플리케이션 배포는 CI/CD 파이프라인에서 진행.
+# 채우다 EC2 부트스트랩 (Amazon Linux 2023 ARM64)
+# 실행 시점: 최초 부팅 1회
+# 이 스크립트는 OS + 패키지 + systemd unit + 디렉터리 준비.
+# 애플리케이션 jar/build는 별도 배포 스크립트로 업로드.
 
 set -euxo pipefail
 exec > >(tee /var/log/user-data.log) 2>&1
 
 dnf update -y
 
-# Java 21 (Amazon Corretto)
+# ── 패키지 ────────────────────────────────────────────
 dnf install -y java-21-amazon-corretto-headless
+dnf install -y mariadb105-server
+dnf install -y nginx
 
-# Node 24 (NodeSource RPM)
+# Node 24
 curl -fsSL https://rpm.nodesource.com/setup_24.x | bash -
 dnf install -y nodejs
 
-# MySQL 8 (mariadb 호환 패키지 대신 MySQL Community)
-dnf install -y mariadb105-server  # AL2023 기본; 채우다는 8.x 권장이지만 우선 가능한 패키지로
-systemctl enable --now mariadb
+# 유용한 유틸
+dnf install -y unzip jq tar
 
-# Nginx (리버스 프록시)
-dnf install -y nginx
+systemctl enable --now mariadb
 systemctl enable --now nginx
 
-# 디렉터리 구조 마련
+# ── 디렉터리 구조 ─────────────────────────────────────
 mkdir -p /opt/chaeuda/backend
 mkdir -p /opt/chaeuda/frontend
 mkdir -p /opt/chaeuda/env
+mkdir -p /opt/chaeuda/scripts
 chown -R ec2-user:ec2-user /opt/chaeuda
+touch /var/log/chaeuda-backend.log /var/log/chaeuda-frontend.log
+chown ec2-user:ec2-user /var/log/chaeuda-backend.log /var/log/chaeuda-frontend.log
 
-# CloudWatch agent (선택사항, 추후 추가)
-# dnf install -y amazon-cloudwatch-agent
+# ── env 파일 placeholder (실 시크릿은 배포 시 SSM에서 가져옴) ──
+cat > /opt/chaeuda/env/backend.env <<'ENV'
+SPRING_PROFILES_ACTIVE=prod
+SERVER_PORT=8080
+# DB
+DB_URL=jdbc:mysql://localhost:3306/chaeuda?useSSL=false&serverTimezone=UTC&characterEncoding=UTF-8&allowPublicKeyRetrieval=true
+DB_USERNAME=chaeuda
+DB_PASSWORD=PLACEHOLDER_FROM_SSM
+# Admin seed
+ADMIN_USERNAME=admin
+ADMIN_PASSWORD=PLACEHOLDER_FROM_SSM
+ADMIN_EMAIL=ops@example.com
+# Auth
+APP_AUTH_SECRET=PLACEHOLDER_FROM_SSM
+AUTH_COOKIE_SECURE=false
+AUTH_COOKIE_SAME_SITE=Lax
+CORS_ALLOWED_ORIGINS=http://localhost,http://127.0.0.1
+# Storage
+STORAGE_TYPE=s3
+S3_BUCKET=PLACEHOLDER_FROM_SSM
+S3_REGION=ap-northeast-2
+ENV
+chown ec2-user:ec2-user /opt/chaeuda/env/backend.env
+chmod 600 /opt/chaeuda/env/backend.env
 
-# Nginx 기본 설정 — 추후 CI/CD에서 덮어쓰기
+cat > /opt/chaeuda/env/frontend.env <<'ENV'
+NODE_ENV=production
+PORT=3000
+HOSTNAME=127.0.0.1
+NEXT_PUBLIC_API_BASE=
+ENV
+chown ec2-user:ec2-user /opt/chaeuda/env/frontend.env
+
+# ── systemd units ─────────────────────────────────────
+cat > /etc/systemd/system/chaeuda-backend.service <<'UNIT'
+[Unit]
+Description=채우다 Backend (Spring Boot)
+After=network.target mariadb.service
+Wants=mariadb.service
+
+[Service]
+Type=simple
+User=ec2-user
+WorkingDirectory=/opt/chaeuda/backend
+EnvironmentFile=/opt/chaeuda/env/backend.env
+ExecStart=/usr/bin/java -Xms256m -Xmx640m -jar /opt/chaeuda/backend/app.jar
+Restart=on-failure
+RestartSec=5
+StandardOutput=append:/var/log/chaeuda-backend.log
+StandardError=append:/var/log/chaeuda-backend.log
+SuccessExitStatus=143
+
+[Install]
+WantedBy=multi-user.target
+UNIT
+
+cat > /etc/systemd/system/chaeuda-frontend.service <<'UNIT'
+[Unit]
+Description=채우다 Frontend (Next.js standalone)
+After=network.target
+
+[Service]
+Type=simple
+User=ec2-user
+WorkingDirectory=/opt/chaeuda/frontend
+EnvironmentFile=/opt/chaeuda/env/frontend.env
+ExecStart=/usr/bin/node /opt/chaeuda/frontend/server.js
+Restart=on-failure
+RestartSec=5
+StandardOutput=append:/var/log/chaeuda-frontend.log
+StandardError=append:/var/log/chaeuda-frontend.log
+
+[Install]
+WantedBy=multi-user.target
+UNIT
+
+systemctl daemon-reload
+# enable만 — 아직 jar/build 없으므로 start는 배포 후
+systemctl enable chaeuda-backend.service
+systemctl enable chaeuda-frontend.service
+
+# ── MySQL 초기화 (DB + 유저, 비밀번호는 배포 스크립트가 ALTER) ──
+mysql -e "CREATE DATABASE IF NOT EXISTS chaeuda CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+mysql -e "CREATE USER IF NOT EXISTS 'chaeuda'@'localhost' IDENTIFIED BY 'placeholder';"
+mysql -e "GRANT ALL PRIVILEGES ON chaeuda.* TO 'chaeuda'@'localhost';"
+mysql -e "FLUSH PRIVILEGES;"
+
+# ── Nginx 설정 ────────────────────────────────────────
 cat > /etc/nginx/conf.d/chaeuda.conf <<'NGINX'
 server {
-    listen 80;
+    listen 80 default_server;
     server_name _;
 
-    # 큰 이미지 업로드 대응
     client_max_body_size 60M;
 
     location /api/ {
@@ -59,6 +146,10 @@ server {
 }
 NGINX
 
-systemctl reload nginx
+# default_server 충돌 방지
+sed -i 's/listen       80 default_server;/listen       80;/' /etc/nginx/nginx.conf || true
+sed -i 's/listen       \[::\]:80 default_server;/listen       [::]:80;/' /etc/nginx/nginx.conf || true
+
+nginx -t && systemctl reload nginx
 
 echo "Bootstrap complete." > /tmp/bootstrap.done

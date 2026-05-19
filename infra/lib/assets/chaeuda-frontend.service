@@ -1,0 +1,17 @@
+[Unit]
+Description=채우다 Frontend (Next.js standalone)
+After=network.target
+
+[Service]
+Type=simple
+User=ec2-user
+WorkingDirectory=/opt/chaeuda/frontend
+EnvironmentFile=/opt/chaeuda/env/frontend.env
+ExecStart=/usr/bin/node /opt/chaeuda/frontend/server.js
+Restart=on-failure
+RestartSec=5
+StandardOutput=append:/var/log/chaeuda-frontend.log
+StandardError=append:/var/log/chaeuda-frontend.log
+
+[Install]
+WantedBy=multi-user.target
