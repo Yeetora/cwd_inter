@@ -19,6 +19,13 @@ spring:
 
 app:
   upload-dir: ./test-uploads
+  storage:
+    type: local
+    s3:
+      bucket: ""
+      region: ap-northeast-2
+      public-url-base: ""
+      endpoint-override: ""
   admin:
     username: admin
     password: admin
