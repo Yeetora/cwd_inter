@@ -9,6 +9,8 @@ spring:
       ddl-auto: create-drop
     show-sql: false
     open-in-view: false
+  flyway:
+    enabled: false  # 테스트는 Hibernate로 H2 스키마 생성, MySQL DDL과 호환성 분리
   mvc:
     throw-exception-if-no-handler-found: true
   web:
