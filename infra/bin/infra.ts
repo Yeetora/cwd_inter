@@ -9,5 +9,5 @@ const account = process.env.CDK_DEFAULT_ACCOUNT;
 
 new ChaeudaInfraStack(app, 'ChaeudaInfraStack', {
   env: { account, region },
-  description: '채우다 by design — 단일 EC2 + S3 + RDS-less 운영 인프라',
+  description: 'Chaeuda by design - single EC2 + S3 + RDS-less infrastructure',
 });

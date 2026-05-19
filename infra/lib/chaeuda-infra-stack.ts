@@ -72,7 +72,7 @@ export class ChaeudaInfraStack extends cdk.Stack {
     // ── IAM Role for EC2 ───────────────────────────────
     const instanceRole = new iam.Role(this, 'InstanceRole', {
       assumedBy: new iam.ServicePrincipal('ec2.amazonaws.com'),
-      description: '채우다 EC2 인스턴스용 — S3 R/W + SSM Session Manager',
+      description: 'Chaeuda EC2 instance role - S3 R/W + SSM Session Manager',
       managedPolicies: [
         iam.ManagedPolicy.fromAwsManagedPolicyName('AmazonSSMManagedInstanceCore'),
       ],
@@ -92,12 +92,12 @@ export class ChaeudaInfraStack extends cdk.Stack {
     // ── Security Group ─────────────────────────────────
     const sg = new ec2.SecurityGroup(this, 'AppServerSG', {
       vpc: this.vpc,
-      description: '채우다 app server — 80/443 공개, 22는 비상시',
+      description: 'Chaeuda app server SG - 80/443 public, 22 emergency only',
       allowAllOutbound: true,
     });
     sg.addIngressRule(ec2.Peer.anyIpv4(), ec2.Port.tcp(80), 'HTTP');
     sg.addIngressRule(ec2.Peer.anyIpv4(), ec2.Port.tcp(443), 'HTTPS');
-    sg.addIngressRule(ec2.Peer.anyIpv4(), ec2.Port.tcp(22), 'SSH (비상용, 평상시 SSM 사용)');
+    sg.addIngressRule(ec2.Peer.anyIpv4(), ec2.Port.tcp(22), 'SSH (emergency only, prefer SSM)');
 
     // ── User Data ──────────────────────────────────────
     const userDataScript = fs.readFileSync(
@@ -140,15 +140,15 @@ export class ChaeudaInfraStack extends cdk.Stack {
     // ── Outputs ────────────────────────────────────────
     new cdk.CfnOutput(this, 'InstanceId', {
       value: this.instance.instanceId,
-      description: 'SSM 접속: aws ssm start-session --target {InstanceId}',
+      description: 'SSM access: aws ssm start-session --target {InstanceId}',
     });
     new cdk.CfnOutput(this, 'PublicIp', {
       value: eip.ref,
-      description: 'Elastic IP — 도메인 A 레코드 대상',
+      description: 'Elastic IP - target for domain A record',
     });
     new cdk.CfnOutput(this, 'UploadsBucketName', {
       value: this.uploadsBucket.bucketName,
-      description: '백엔드 환경변수 S3_BUCKET에 설정',
+      description: 'Set this as backend env var S3_BUCKET',
     });
     new cdk.CfnOutput(this, 'UploadsBucketRegion', {
       value: this.region,
