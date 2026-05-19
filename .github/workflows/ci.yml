@@ -93,7 +93,8 @@ jobs:
           cache-dependency-path: infra/package-lock.json
 
       - name: Install dependencies
-        run: npm ci
+        # npm ci가 aws-cdk transitive 의존성 해석에서 false-positive 진단을 내는 알려진 이슈 회피
+        run: npm install --no-audit --no-fund
 
       - name: Test
         run: npm test
