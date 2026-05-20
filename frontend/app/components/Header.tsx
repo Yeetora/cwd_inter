@@ -20,7 +20,7 @@ const NAV_ITEMS = [
   { label: "Contact", href: "/contact" },
 ] as const;
 
-const INSTAGRAM_URL = "https://instagram.com/";
+const INSTAGRAM_URL = "https://instagram.com/studio_chauda";
 
 function isActive(pathname: string, href: string): boolean {
   if (href === "/") return pathname === "/";
@@ -100,6 +100,7 @@ export default function Header() {
   const shouldHide = hidden && !open;
 
   return (
+    <>
     <header
       className={`sticky top-0 z-40 w-full bg-surface-warm/95 backdrop-blur transition-transform duration-300 ${
         shouldHide ? "-translate-y-full" : "translate-y-0"
@@ -189,9 +190,11 @@ export default function Header() {
           </span>
         </button>
       </div>
+    </header>
 
-      {open && (
-        <div className="md:hidden fixed inset-x-0 top-28 bottom-0 z-30 overflow-y-auto bg-surface-warm">
+    {/* 모바일 메뉴 오버레이 — header 외부에 두어야 header transform 영향 안 받음 */}
+    {open && (
+        <div className="md:hidden fixed inset-x-0 top-28 bottom-0 z-50 overflow-y-auto bg-surface-warm">
           <nav className="flex flex-col px-4 py-6 text-base">
             {NAV_ITEMS.map((item) =>
               "children" in item ? (
@@ -246,6 +249,6 @@ export default function Header() {
           </nav>
         </div>
       )}
-    </header>
+    </>
   );
 }
