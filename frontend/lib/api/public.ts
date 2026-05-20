@@ -1,4 +1,3 @@
-import { API_BASE } from "./client";
 import type {
   Category,
   PageResponse,
@@ -12,8 +11,16 @@ export type AdjacentResponse = {
   next: { id: number; title: string } | null;
 };
 
+/** SSR/CSR 분기는 client.ts와 동일. fetch 시점에 평가. */
+function resolveApiBase(): string {
+  if (typeof window === "undefined") {
+    return process.env.API_BASE_INTERNAL || "http://127.0.0.1:8080";
+  }
+  return process.env.NEXT_PUBLIC_API_BASE || "";
+}
+
 async function getJson<T>(path: string): Promise<T | null> {
-  const res = await fetch(`${API_BASE}${path}`, { cache: "no-store" });
+  const res = await fetch(`${resolveApiBase()}${path}`, { cache: "no-store" });
   if (res.status === 404) return null;
   if (!res.ok) return null;
   return (await res.json()) as T;

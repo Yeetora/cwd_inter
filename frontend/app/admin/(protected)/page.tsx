@@ -1,11 +1,11 @@
 import Link from "next/link";
 import { cookies } from "next/headers";
-import { API_BASE } from "@/lib/api/client";
+import { serverApiBase } from "@/lib/api/client";
 import type { PageResponse, PortfolioListItem } from "@/lib/api/types";
 
 async function fetchCount(cookieHeader: string): Promise<number | null> {
   try {
-    const res = await fetch(`${API_BASE}/api/admin/portfolios?size=1`, {
+    const res = await fetch(`${serverApiBase()}/api/admin/portfolios?size=1`, {
       headers: { Cookie: cookieHeader },
       cache: "no-store",
     });

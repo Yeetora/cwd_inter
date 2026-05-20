@@ -1,6 +1,6 @@
 import { cookies } from "next/headers";
 import type { Metadata } from "next";
-import { API_BASE } from "@/lib/api/client";
+import { serverApiBase } from "@/lib/api/client";
 import type { SiteInfo } from "@/lib/api/types";
 import SiteInfoForm from "./SiteInfoForm";
 
@@ -11,7 +11,7 @@ export const metadata: Metadata = {
 
 async function fetchSiteInfo(cookieHeader: string): Promise<SiteInfo | null> {
   try {
-    const res = await fetch(`${API_BASE}/api/admin/site-info`, {
+    const res = await fetch(`${serverApiBase()}/api/admin/site-info`, {
       headers: { Cookie: cookieHeader },
       cache: "no-store",
     });
