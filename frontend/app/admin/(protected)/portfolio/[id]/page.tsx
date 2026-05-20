@@ -1,13 +1,13 @@
 import { cookies } from "next/headers";
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { API_BASE } from "@/lib/api/client";
+import { serverApiBase } from "@/lib/api/client";
 import type { PortfolioDetail } from "@/lib/api/types";
 import PortfolioForm from "../PortfolioForm";
 import ImageManager from "./ImageManager";
 
 async function fetchPortfolio(id: number, cookieHeader: string): Promise<PortfolioDetail | null> {
-  const res = await fetch(`${API_BASE}/api/admin/portfolios/${id}`, {
+  const res = await fetch(`${serverApiBase()}/api/admin/portfolios/${id}`, {
     headers: { Cookie: cookieHeader },
     cache: "no-store",
   });

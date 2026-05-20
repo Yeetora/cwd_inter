@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { cookies } from "next/headers";
-import { API_BASE } from "@/lib/api/client";
+import { serverApiBase } from "@/lib/api/client";
 import type { Category, PageResponse, PortfolioListItem } from "@/lib/api/types";
 import { imageSrc } from "@/lib/api/admin";
 import PortfolioRowActions from "./PortfolioRowActions";
@@ -16,7 +16,7 @@ async function fetchList(
     if (params.category) sp.set("category", params.category);
     sp.set("page", params.page ?? "0");
     sp.set("size", params.size ?? "20");
-    const res = await fetch(`${API_BASE}/api/admin/portfolios?${sp.toString()}`, {
+    const res = await fetch(`${serverApiBase()}/api/admin/portfolios?${sp.toString()}`, {
       headers: { Cookie: cookieHeader },
       cache: "no-store",
     });

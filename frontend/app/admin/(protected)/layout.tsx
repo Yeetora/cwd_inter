@@ -1,12 +1,12 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import type { AdminInfo } from "@/lib/api/types";
-import { API_BASE } from "@/lib/api/client";
+import { serverApiBase } from "@/lib/api/client";
 import AdminTopbar from "../components/AdminTopbar";
 
 async function fetchMe(cookieHeader: string): Promise<AdminInfo | null> {
   try {
-    const res = await fetch(`${API_BASE}/api/admin/auth/me`, {
+    const res = await fetch(`${serverApiBase()}/api/admin/auth/me`, {
       headers: { Cookie: cookieHeader, Accept: "application/json" },
       cache: "no-store",
     });
