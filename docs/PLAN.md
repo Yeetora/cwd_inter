@@ -204,6 +204,16 @@
 8. GitHub Actions 워크플로우 작성
 9. 도메인/HTTPS 연결
 
+- [ ] **GitBook 학습 노트 별도 레포 분리** (보류 — 추후 진행)
+  - 현재 `docs/learn/` + `.gitbook.yaml`이 이 레포(`cwd_inter`)에 머지된 상태
+  - 같은 레포에 두면 docs-only 변경에도 deploy 워크플로우가 도는 비효율 + 권한 분리 어려움
+  - **계획:**
+    1. 새 레포(예: `chaeuda-docs`) 생성
+    2. `docs/learn/*.md`를 새 레포로 이전 (히스토리 보존하려면 `git filter-repo` 사용)
+    3. 새 레포 루트에 `SUMMARY.md`, `README.md` 배치 + GitBook Space 연결
+    4. 이 레포에서 `docs/learn/`, `.gitbook.yaml` 삭제
+  - GitBook 자동 동기화는 분리된 다음에 진행 (지금은 연결 안 함)
+
 ### 참고
 - 위 작업은 모두 **공개 페이지 디자인 다듬기 (Phase 9 연장선)**
 - 백엔드 Phase G (문의 API)와 프런트 `/admin/inquiries` 본 구현은 별도 트랙
