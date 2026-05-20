@@ -83,6 +83,16 @@ export const adminApi = {
 
   deleteHeroImage: () =>
     api<SiteInfo>("/api/admin/site-info/hero-image", { method: "DELETE" }),
+
+  uploadCategoryHero: (category: Category, file: File) => {
+    const fd = new FormData();
+    fd.append("file", file);
+    fd.append("category", category);
+    return api<SiteInfo>("/api/admin/site-info/category-hero", { method: "POST", body: fd });
+  },
+
+  deleteCategoryHero: (category: Category) =>
+    api<SiteInfo>(`/api/admin/site-info/category-hero?category=${category}`, { method: "DELETE" }),
 };
 
 export function imageSrc(url: string | null): string | null {

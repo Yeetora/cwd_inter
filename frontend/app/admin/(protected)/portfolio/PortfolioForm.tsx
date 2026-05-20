@@ -1,10 +1,12 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import type { Category, PortfolioDetail } from "@/lib/api/types";
 import { adminApi } from "@/lib/api/admin";
 import { ApiError } from "@/lib/api/client";
+
+const MAX_INITIAL_IMAGES = 10;
 
 type Props =
   | { mode: "create"; initial?: undefined }
@@ -21,6 +23,24 @@ export default function PortfolioForm({ mode, initial }: Props) {
   const [isPublished, setIsPublished] = useState(initial?.isPublished ?? true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [initialFiles, setInitialFiles] = useState<File[]>([]);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  function onSelectFiles(e: React.ChangeEvent<HTMLInputElement>) {
+    setError(null);
+    const files = Array.from(e.target.files ?? []);
+    if (files.length === 0) return;
+    if (files.length > MAX_INITIAL_IMAGES) {
+      setError(`이미지는 한 번에 최대 ${MAX_INITIAL_IMAGES}장까지 선택 가능합니다.`);
+      e.target.value = "";
+      return;
+    }
+    setInitialFiles(files);
+  }
+
+  function removeFile(index: number) {
+    setInitialFiles((prev) => prev.filter((_, i) => i !== index));
+  }
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -37,6 +57,16 @@ export default function PortfolioForm({ mode, initial }: Props) {
           description: description || null,
           isPublished,
         });
+        // 등록 직후 선택된 이미지가 있으면 이어서 업로드
+        if (initialFiles.length > 0) {
+          try {
+            await adminApi.uploadImages(created.id, initialFiles);
+          } catch (uploadErr) {
+            // 메타데이터는 이미 저장됨. 편집 페이지에서 다시 시도 가능.
+            const msg = uploadErr instanceof ApiError ? uploadErr.message : "이미지 업로드 실패";
+            setError(`포트폴리오는 등록됐으나 이미지 업로드 실패: ${msg}. 편집 페이지에서 다시 시도하세요.`);
+          }
+        }
         router.replace(`/admin/portfolio/${created.id}`);
         router.refresh();
       } else {
@@ -130,6 +160,41 @@ export default function PortfolioForm({ mode, initial }: Props) {
         />
         공개
       </label>
+
+      {mode === "create" && (
+        <Field label={`초기 이미지 (선택, 최대 ${MAX_INITIAL_IMAGES}장)`}>
+          <input
+            ref={fileInputRef}
+            type="file"
+            multiple
+            accept="image/jpeg,image/png,image/webp"
+            onChange={onSelectFiles}
+            disabled={busy}
+            className="text-sm"
+          />
+          {initialFiles.length > 0 && (
+            <ul className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
+              {initialFiles.map((f, idx) => (
+                <li key={`${f.name}-${idx}`} className="relative border border-neutral-200 p-2 text-xs">
+                  <div className="truncate">{f.name}</div>
+                  <div className="text-neutral-500">{(f.size / 1024).toFixed(0)} KB</div>
+                  <button
+                    type="button"
+                    onClick={() => removeFile(idx)}
+                    disabled={busy}
+                    className="absolute top-1 right-1 text-red-600 text-xs hover:underline"
+                  >
+                    ✕
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+          <p className="mt-2 text-xs text-neutral-500">
+            첫 번째 이미지가 자동으로 대표 이미지로 지정됩니다. 등록 후에도 편집 페이지에서 추가 업로드 가능합니다.
+          </p>
+        </Field>
+      )}
 
       {error && <p className="text-sm text-red-600">{error}</p>}
 

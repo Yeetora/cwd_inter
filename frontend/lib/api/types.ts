@@ -68,6 +68,8 @@ export type SiteInfo = {
   companyAddress: string | null;
   businessHours: string | null;
   heroImageUrl: string | null;
+  residentialHeroUrl: string | null;
+  commercialHeroUrl: string | null;
 };
 
 export type SiteInfoUpdateInput = {

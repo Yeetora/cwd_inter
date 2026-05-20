@@ -1,5 +1,6 @@
 package com.chaeuda.siteinfo.controller;
 
+import com.chaeuda.portfolio.domain.Category;
 import com.chaeuda.siteinfo.dto.SiteInfoResponse;
 import com.chaeuda.siteinfo.dto.SiteInfoUpdateRequest;
 import com.chaeuda.siteinfo.service.SiteInfoService;
@@ -35,5 +36,18 @@ public class AdminSiteInfoController {
     @DeleteMapping("/hero-image")
     public SiteInfoResponse deleteHero() {
         return siteInfoService.deleteHero();
+    }
+
+    @PostMapping("/category-hero")
+    public SiteInfoResponse uploadCategoryHero(
+            @RequestParam("category") Category category,
+            @RequestParam("file") MultipartFile file
+    ) throws IOException {
+        return siteInfoService.uploadCategoryHero(category, file);
+    }
+
+    @DeleteMapping("/category-hero")
+    public SiteInfoResponse deleteCategoryHero(@RequestParam("category") Category category) {
+        return siteInfoService.deleteCategoryHero(category);
     }
 }
