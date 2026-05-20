@@ -125,6 +125,48 @@ class SiteInfoControllerTest {
     }
 
     @Test
+    void category_hero_upload_and_delete() throws Exception {
+        MockMultipartFile file = new MockMultipartFile(
+                "file", "res.jpg", "image/jpeg", new byte[]{1, 2});
+
+        mockMvc.perform(multipart("/api/admin/site-info/category-hero")
+                        .file(file)
+                        .param("category", "RESIDENTIAL")
+                        .cookie(sessionCookie))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.residentialHeroUrl").isString())
+                .andExpect(jsonPath("$.commercialHeroUrl").doesNotExist());
+
+        mockMvc.perform(get("/api/site-info"))
+                .andExpect(jsonPath("$.residentialHeroUrl").isString());
+
+        mockMvc.perform(delete("/api/admin/site-info/category-hero")
+                        .param("category", "RESIDENTIAL")
+                        .cookie(sessionCookie))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.residentialHeroUrl").doesNotExist());
+    }
+
+    @Test
+    void category_hero_requires_auth() throws Exception {
+        mockMvc.perform(post("/api/admin/site-info/category-hero").param("category", "RESIDENTIAL"))
+                .andExpect(status().isUnauthorized());
+        mockMvc.perform(delete("/api/admin/site-info/category-hero").param("category", "RESIDENTIAL"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void category_hero_invalid_category_returns_400() throws Exception {
+        MockMultipartFile file = new MockMultipartFile(
+                "file", "res.jpg", "image/jpeg", new byte[]{1});
+        mockMvc.perform(multipart("/api/admin/site-info/category-hero")
+                        .file(file)
+                        .param("category", "OFFICE")
+                        .cookie(sessionCookie))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
     void admin_delete_hero_when_none_returns_400() throws Exception {
         mockMvc.perform(delete("/api/admin/site-info/hero-image").cookie(sessionCookie))
                 .andExpect(status().isBadRequest());

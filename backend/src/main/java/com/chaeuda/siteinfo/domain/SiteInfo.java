@@ -1,5 +1,6 @@
 package com.chaeuda.siteinfo.domain;
 
+import com.chaeuda.portfolio.domain.Category;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Getter;
@@ -34,6 +35,12 @@ public class SiteInfo {
     @Column(name = "hero_image_path", length = 500)
     private String heroImagePath;
 
+    @Column(name = "residential_hero_path", length = 500)
+    private String residentialHeroPath;
+
+    @Column(name = "commercial_hero_path", length = 500)
+    private String commercialHeroPath;
+
     @Column(name = "updated_at", nullable = false)
     private Instant updatedAt;
 
@@ -54,6 +61,19 @@ public class SiteInfo {
 
     public void updateHeroImagePath(String path) {
         this.heroImagePath = path;
+        this.updatedAt = Instant.now();
+    }
+
+    public String getCategoryHeroPath(Category category) {
+        return category == Category.RESIDENTIAL ? residentialHeroPath : commercialHeroPath;
+    }
+
+    public void updateCategoryHeroPath(Category category, String path) {
+        if (category == Category.RESIDENTIAL) {
+            this.residentialHeroPath = path;
+        } else {
+            this.commercialHeroPath = path;
+        }
         this.updatedAt = Instant.now();
     }
 }

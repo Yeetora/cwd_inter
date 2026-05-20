@@ -4,6 +4,7 @@ import com.chaeuda.common.exception.ApiException;
 import com.chaeuda.file.ImageStorage;
 import com.chaeuda.file.ImageValidator;
 import com.chaeuda.file.StoredFile;
+import com.chaeuda.portfolio.domain.Category;
 import com.chaeuda.siteinfo.domain.SiteInfo;
 import com.chaeuda.siteinfo.dto.SiteInfoResponse;
 import com.chaeuda.siteinfo.dto.SiteInfoUpdateRequest;
@@ -24,6 +25,7 @@ import java.io.InputStream;
 public class SiteInfoService {
 
     private static final String HERO_PREFIX = "site-info";
+    private static final String CATEGORY_HERO_PREFIX = "site-info/category";
 
     private final SiteInfoRepository siteInfoRepository;
     private final ImageStorage imageStorage;
@@ -71,6 +73,47 @@ public class SiteInfoService {
     }
 
     @Transactional
+    public SiteInfoResponse uploadCategoryHero(Category category, MultipartFile file) throws IOException {
+        ImageValidator.validate(file);
+        SiteInfo siteInfo = getOrInit();
+
+        String oldPath = siteInfo.getCategoryHeroPath(category);
+
+        StoredFile stored;
+        try (InputStream in = file.getInputStream()) {
+            stored = imageStorage.store(in, file.getOriginalFilename(), CATEGORY_HERO_PREFIX);
+        }
+        siteInfo.updateCategoryHeroPath(category, stored.filePath());
+        siteInfoRepository.save(siteInfo);
+
+        if (oldPath != null && !oldPath.isBlank()) {
+            try {
+                imageStorage.delete(oldPath);
+            } catch (Exception e) {
+                log.warn("Failed to delete previous category hero '{}': {}", oldPath, e.getMessage());
+            }
+        }
+        return toResponse(siteInfo);
+    }
+
+    @Transactional
+    public SiteInfoResponse deleteCategoryHero(Category category) {
+        SiteInfo siteInfo = getOrInit();
+        String path = siteInfo.getCategoryHeroPath(category);
+        if (path == null) {
+            throw ApiException.badRequest("해당 카테고리 히어로 이미지가 설정되어 있지 않습니다");
+        }
+        siteInfo.updateCategoryHeroPath(category, null);
+        siteInfoRepository.save(siteInfo);
+        try {
+            imageStorage.delete(path);
+        } catch (Exception e) {
+            log.warn("Failed to delete category hero '{}': {}", path, e.getMessage());
+        }
+        return toResponse(siteInfo);
+    }
+
+    @Transactional
     public SiteInfoResponse deleteHero() {
         SiteInfo siteInfo = getOrInit();
         if (siteInfo.getHeroImagePath() == null) {
@@ -93,14 +136,19 @@ public class SiteInfoService {
     }
 
     private SiteInfoResponse toResponse(SiteInfo s) {
-        String heroUrl = s.getHeroImagePath() == null ? null : imageStorage.publicUrl(s.getHeroImagePath());
         return new SiteInfoResponse(
                 s.getCompanyPhone(),
                 s.getCompanyEmail(),
                 s.getCompanyAddress(),
                 s.getBusinessHours(),
-                heroUrl
+                toUrl(s.getHeroImagePath()),
+                toUrl(s.getResidentialHeroPath()),
+                toUrl(s.getCommercialHeroPath())
         );
+    }
+
+    private String toUrl(String path) {
+        return path == null ? null : imageStorage.publicUrl(path);
     }
 
     private static String emptyToNull(String s) {

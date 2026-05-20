@@ -5,6 +5,8 @@ public record SiteInfoResponse(
         String companyEmail,
         String companyAddress,
         String businessHours,
-        String heroImageUrl
+        String heroImageUrl,
+        String residentialHeroUrl,
+        String commercialHeroUrl
 ) {
 }

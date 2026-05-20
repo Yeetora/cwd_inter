@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import type { SiteInfo } from "@/lib/api/types";
+import type { Category, SiteInfo } from "@/lib/api/types";
 import { adminApi, imageSrc } from "@/lib/api/admin";
 import { ApiError } from "@/lib/api/client";
 
@@ -13,6 +13,8 @@ export default function SiteInfoForm({ initial }: { initial: SiteInfo | null }) 
   const [companyAddress, setCompanyAddress] = useState(initial?.companyAddress ?? "");
   const [businessHours, setBusinessHours] = useState(initial?.businessHours ?? "");
   const [heroUrl, setHeroUrl] = useState<string | null>(initial?.heroImageUrl ?? null);
+  const [residentialUrl, setResidentialUrl] = useState<string | null>(initial?.residentialHeroUrl ?? null);
+  const [commercialUrl, setCommercialUrl] = useState<string | null>(initial?.commercialHeroUrl ?? null);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -68,6 +70,44 @@ export default function SiteInfoForm({ initial }: { initial: SiteInfo | null }) 
       const updated = await adminApi.deleteHeroImage();
       setHeroUrl(updated.heroImageUrl);
       setMsg("히어로 이미지가 삭제되었습니다.");
+      router.refresh();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "삭제 실패");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function onUploadCategory(category: Category, e: React.ChangeEvent<HTMLInputElement>) {
+    setError(null);
+    setMsg(null);
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setBusy(true);
+    try {
+      const updated = await adminApi.uploadCategoryHero(category, file);
+      setResidentialUrl(updated.residentialHeroUrl);
+      setCommercialUrl(updated.commercialHeroUrl);
+      setMsg(`${category === "RESIDENTIAL" ? "주거공간" : "상업공간"} 이미지가 업데이트되었습니다.`);
+      router.refresh();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "업로드 실패");
+    } finally {
+      setBusy(false);
+      e.target.value = "";
+    }
+  }
+
+  async function onDeleteCategory(category: Category) {
+    if (!confirm(`${category === "RESIDENTIAL" ? "주거공간" : "상업공간"} 이미지를 삭제하시겠습니까?`)) return;
+    setError(null);
+    setMsg(null);
+    setBusy(true);
+    try {
+      const updated = await adminApi.deleteCategoryHero(category);
+      setResidentialUrl(updated.residentialHeroUrl);
+      setCommercialUrl(updated.commercialHeroUrl);
+      setMsg("이미지가 삭제되었습니다.");
       router.refresh();
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "삭제 실패");
@@ -133,6 +173,33 @@ export default function SiteInfoForm({ initial }: { initial: SiteInfo | null }) 
         </div>
       </section>
 
+      {/* ── 카테고리 카드 이미지 ── */}
+      <section className="bg-white border border-neutral-200 p-6">
+        <h2 className="text-sm font-medium tracking-[0.2em] text-neutral-500 uppercase">
+          프로젝트 카테고리 카드 이미지
+        </h2>
+        <p className="mt-1 text-xs text-neutral-500">
+          /project 페이지의 주거공간/상업공간 카드 배경. 권장 4:3 비율.
+        </p>
+
+        <div className="mt-4 grid gap-4 sm:grid-cols-2">
+          <CategoryImageBlock
+            label="주거공간"
+            url={residentialUrl}
+            busy={busy}
+            onUpload={(e) => onUploadCategory("RESIDENTIAL", e)}
+            onDelete={() => onDeleteCategory("RESIDENTIAL")}
+          />
+          <CategoryImageBlock
+            label="상업공간"
+            url={commercialUrl}
+            busy={busy}
+            onUpload={(e) => onUploadCategory("COMMERCIAL", e)}
+            onDelete={() => onDeleteCategory("COMMERCIAL")}
+          />
+        </div>
+      </section>
+
       {/* ── 연락처 정보 ── */}
       <form onSubmit={onSubmitContact} className="bg-white border border-neutral-200 p-6 space-y-5">
         <h2 className="text-sm font-medium tracking-[0.2em] text-neutral-500 uppercase">
@@ -157,6 +224,59 @@ export default function SiteInfoForm({ initial }: { initial: SiteInfo | null }) 
 
       {msg && <p className="text-sm text-emerald-600">{msg}</p>}
       {error && <p className="text-sm text-red-600">{error}</p>}
+    </div>
+  );
+}
+
+function CategoryImageBlock({
+  label,
+  url,
+  busy,
+  onUpload,
+  onDelete,
+}: {
+  label: string;
+  url: string | null;
+  busy: boolean;
+  onUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onDelete: () => void;
+}) {
+  return (
+    <div className="border border-neutral-200">
+      <div className="aspect-[4/3] bg-neutral-100 relative overflow-hidden">
+        {url ? (
+          /* eslint-disable-next-line @next/next/no-img-element */
+          <img src={imageSrc(url) ?? ""} alt={label} className="absolute inset-0 h-full w-full object-cover" />
+        ) : (
+          <div className="absolute inset-0 flex items-center justify-center text-sm text-neutral-500">
+            이미지 없음
+          </div>
+        )}
+      </div>
+      <div className="p-3 flex items-center justify-between gap-2">
+        <div className="text-sm font-medium">{label}</div>
+        <div className="flex gap-1">
+          <label className="border border-neutral-300 px-2 py-1 text-xs hover:bg-neutral-100 cursor-pointer">
+            {url ? "교체" : "업로드"}
+            <input
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              onChange={onUpload}
+              disabled={busy}
+              className="hidden"
+            />
+          </label>
+          {url && (
+            <button
+              onClick={onDelete}
+              disabled={busy}
+              className="border border-red-300 text-red-600 px-2 py-1 text-xs hover:bg-red-50 disabled:opacity-50"
+            >
+              삭제
+            </button>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
