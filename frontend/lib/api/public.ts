@@ -4,6 +4,7 @@ import type {
   PageResponse,
   PortfolioDetail,
   PortfolioListItem,
+  SiteInfo,
 } from "./types";
 
 export type AdjacentResponse = {
@@ -28,4 +29,6 @@ export const publicApi = {
 
   getAdjacent: (id: number, category: Category) =>
     getJson<AdjacentResponse>(`/api/portfolios/${id}/adjacent?category=${category}`),
+
+  getSiteInfo: () => getJson<SiteInfo>(`/api/site-info`),
 };

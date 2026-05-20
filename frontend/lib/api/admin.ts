@@ -8,6 +8,8 @@ import type {
   PortfolioImage,
   PortfolioListItem,
   PortfolioUpdateInput,
+  SiteInfo,
+  SiteInfoUpdateInput,
 } from "./types";
 
 export const adminApi = {
@@ -66,6 +68,21 @@ export const adminApi = {
 
   deleteImage: (portfolioId: number, imageId: number) =>
     api<void>(`/api/admin/portfolios/${portfolioId}/images/${imageId}`, { method: "DELETE" }),
+
+  // site info
+  getSiteInfo: () => api<SiteInfo>("/api/admin/site-info"),
+
+  updateSiteInfo: (input: SiteInfoUpdateInput) =>
+    api<SiteInfo>("/api/admin/site-info", { method: "PUT", body: input }),
+
+  uploadHeroImage: (file: File) => {
+    const fd = new FormData();
+    fd.append("file", file);
+    return api<SiteInfo>("/api/admin/site-info/hero-image", { method: "POST", body: fd });
+  },
+
+  deleteHeroImage: () =>
+    api<SiteInfo>("/api/admin/site-info/hero-image", { method: "DELETE" }),
 };
 
 export function imageSrc(url: string | null): string | null {

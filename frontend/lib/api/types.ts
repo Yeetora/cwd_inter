@@ -61,3 +61,18 @@ export type PortfolioCreateInput = {
 export type PortfolioUpdateInput = Required<Omit<PortfolioCreateInput, "isPublished">> & {
   isPublished: boolean;
 };
+
+export type SiteInfo = {
+  companyPhone: string | null;
+  companyEmail: string | null;
+  companyAddress: string | null;
+  businessHours: string | null;
+  heroImageUrl: string | null;
+};
+
+export type SiteInfoUpdateInput = {
+  companyPhone: string | null;
+  companyEmail: string | null;
+  companyAddress: string | null;
+  businessHours: string | null;
+};

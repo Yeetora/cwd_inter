@@ -9,6 +9,7 @@ import { adminApi } from "@/lib/api/admin";
 const NAV = [
   { label: "대시보드", href: "/admin" },
   { label: "포트폴리오", href: "/admin/portfolio" },
+  { label: "사이트 설정", href: "/admin/site-info" },
   { label: "문의", href: "/admin/inquiries" },
 ];
 

@@ -1,7 +1,15 @@
 import Image from "next/image";
 import Link from "next/link";
+import { publicApi } from "@/lib/api/public";
 
-export default function Footer() {
+export default async function Footer() {
+  const siteInfo = await publicApi.getSiteInfo();
+
+  const phone = siteInfo?.companyPhone ?? null;
+  const email = siteInfo?.companyEmail ?? null;
+  const address = siteInfo?.companyAddress ?? null;
+  const hours = siteInfo?.businessHours ?? null;
+
   return (
     <footer className="mt-24 bg-[linear-gradient(to_bottom,var(--background)_0%,var(--surface-warm)_40%,var(--surface-warm)_100%)]">
       <div className="mx-auto max-w-7xl px-4 py-12 md:px-8">
@@ -19,9 +27,13 @@ export default function Footer() {
           <div className="text-sm">
             <div className="font-medium">Contact</div>
             <ul className="mt-3 space-y-1 text-muted">
-              <li>전화: 000-0000-0000</li>
-              <li>이메일: hello@example.com</li>
-              <li>주소: 서울시 ○○구 ○○로 ○○</li>
+              {phone && <li>전화: {phone}</li>}
+              {email && <li>이메일: {email}</li>}
+              {address && <li>주소: {address}</li>}
+              {hours && <li>운영시간: {hours}</li>}
+              {!phone && !email && !address && !hours && (
+                <li className="text-muted/60">연락처 정보 미설정</li>
+              )}
             </ul>
           </div>
 

@@ -1,13 +1,17 @@
-import Image from "next/image";
 import Link from "next/link";
 import { publicApi } from "@/lib/api/public";
 import { imageSrc } from "@/lib/api/admin";
 
 export default async function HomePage() {
-  const [residential, commercial] = await Promise.all([
+  const [residential, commercial, siteInfo] = await Promise.all([
     publicApi.listPortfolios("RESIDENTIAL", 0, 3),
     publicApi.listPortfolios("COMMERCIAL", 0, 3),
+    publicApi.getSiteInfo(),
   ]);
+
+  // 백엔드에 등록된 히어로 이미지 우선, 없으면 기본 정적 이미지
+  // S3면 절대 URL이라 그대로, 로컬 저장이면 imageSrc로 절대화
+  const heroSrc = imageSrc(siteInfo?.heroImageUrl ?? null) ?? "/hero-main.png";
 
   const featured = [
     ...(residential?.items ?? []),
@@ -17,13 +21,12 @@ export default async function HomePage() {
   return (
     <div>
       <section className="relative overflow-hidden bg-surface-warm">
-        <Image
-          src="/hero-main.png"
+        {/* 동적 히어로 이미지: 관리자 페이지에서 업로드한 이미지가 있으면 사용. */}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={heroSrc}
           alt=""
-          fill
-          priority
-          sizes="100vw"
-          className="object-cover"
+          className="absolute inset-0 h-full w-full object-cover"
         />
         {/* 상단: 헤더(베이지)에서 이미지로 자연스럽게 페이드 */}
         <div className="absolute inset-x-0 top-0 h-56 md:h-72 bg-gradient-to-b from-surface-warm via-surface-warm/60 to-transparent" />
