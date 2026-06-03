@@ -18,19 +18,34 @@ describe('ChaeudaInfraStack', () => {
     t.resourceCountIs('AWS::EC2::Subnet', 1);
   });
 
-  test('creates a private S3 bucket with managed encryption', () => {
+  test('creates S3 bucket with managed encryption and ACL-based public block', () => {
     const t = synth();
     t.hasResourceProperties('AWS::S3::Bucket', {
       PublicAccessBlockConfiguration: {
         BlockPublicAcls: true,
-        BlockPublicPolicy: true,
+        BlockPublicPolicy: false,        // bucket policy로 public read 허용
         IgnorePublicAcls: true,
-        RestrictPublicBuckets: true,
+        RestrictPublicBuckets: false,
       },
       BucketEncryption: Match.objectLike({
         ServerSideEncryptionConfiguration: Match.arrayWith([
           Match.objectLike({
             ServerSideEncryptionByDefault: { SSEAlgorithm: 'AES256' },
+          }),
+        ]),
+      }),
+    });
+  });
+
+  test('bucket policy grants public s3:GetObject', () => {
+    const t = synth();
+    t.hasResourceProperties('AWS::S3::BucketPolicy', {
+      PolicyDocument: Match.objectLike({
+        Statement: Match.arrayWith([
+          Match.objectLike({
+            Effect: 'Allow',
+            Principal: { AWS: '*' },
+            Action: 's3:GetObject',
           }),
         ]),
       }),
