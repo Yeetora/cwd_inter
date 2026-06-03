@@ -49,15 +49,22 @@ export class ChaeudaInfraStack extends cdk.Stack {
     });
 
     // ── S3 Bucket (uploads) ────────────────────────────
+    // public read 허용 (브라우저가 이미지 직접 GET 가능해야 함).
+    // 업로드/삭제는 여전히 EC2 IAM Role 전용.
     this.uploadsBucket = new s3.Bucket(this, 'UploadsBucket', {
-      blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
+      blockPublicAccess: new s3.BlockPublicAccess({
+        blockPublicAcls: true,         // ACL 기반 public은 차단
+        ignorePublicAcls: true,
+        blockPublicPolicy: false,      // 명시적 bucket policy로 public read 허용
+        restrictPublicBuckets: false,
+      }),
       encryption: s3.BucketEncryption.S3_MANAGED,
       versioned: false,
-      removalPolicy: cdk.RemovalPolicy.RETAIN,  // 스택 삭제 시에도 버킷·이미지 보존
+      removalPolicy: cdk.RemovalPolicy.RETAIN,
       cors: [
         {
           allowedMethods: [s3.HttpMethods.GET],
-          allowedOrigins: ['*'],            // 추후 도메인 화이트리스트로 좁힘
+          allowedOrigins: ['*'],
           allowedHeaders: ['*'],
           maxAge: 3600,
         },
@@ -68,6 +75,16 @@ export class ChaeudaInfraStack extends cdk.Stack {
         },
       ],
     });
+
+    // public read-only policy — GetObject만, 나머지는 IAM Role
+    this.uploadsBucket.addToResourcePolicy(
+      new iam.PolicyStatement({
+        effect: iam.Effect.ALLOW,
+        principals: [new iam.AnyPrincipal()],
+        actions: ['s3:GetObject'],
+        resources: [this.uploadsBucket.arnForObjects('*')],
+      }),
+    );
 
     // ── IAM Role for EC2 ───────────────────────────────
     const instanceRole = new iam.Role(this, 'InstanceRole', {
