@@ -1,15 +1,21 @@
 import * as cdk from 'aws-cdk-lib/core';
 import { Construct } from 'constructs';
+import * as acm from 'aws-cdk-lib/aws-certificatemanager';
+import * as cloudfront from 'aws-cdk-lib/aws-cloudfront';
+import * as origins from 'aws-cdk-lib/aws-cloudfront-origins';
 import * as ec2 from 'aws-cdk-lib/aws-ec2';
 import * as iam from 'aws-cdk-lib/aws-iam';
 import * as route53 from 'aws-cdk-lib/aws-route53';
+import * as route53Targets from 'aws-cdk-lib/aws-route53-targets';
 import * as s3 from 'aws-cdk-lib/aws-s3';
 import * as fs from 'fs';
 import * as path from 'path';
 
 export interface ChaeudaInfraStackProps extends cdk.StackProps {
-  /** 운영 도메인 (Phase 1: Route 53 hosted zone만 생성). 미지정 시 도메인 리소스 생성 안 함. */
+  /** 운영 도메인 (apex). 지정 시 Route 53 호스팅 영역 + CloudFront + 레코드까지 생성. */
   readonly domainName?: string;
+  /** ACM 인증서 ARN (us-east-1). 지정 시 CloudFront 활성화. */
+  readonly certificateArn?: string;
 }
 
 /**
@@ -155,8 +161,7 @@ export class ChaeudaInfraStack extends cdk.Stack {
       instanceId: this.instance.instanceId,
     });
 
-    // ── Route 53 Hosted Zone (Phase 1 — DNS only) ─────
-    // ACM 인증서 + CloudFront는 별도 PR에서 추가 (NS 전파 후).
+    // ── Route 53 Hosted Zone ──────────────────────────
     let hostedZone: route53.IHostedZone | undefined;
     if (props.domainName) {
       hostedZone = new route53.PublicHostedZone(this, 'HostedZone', {
@@ -168,9 +173,91 @@ export class ChaeudaInfraStack extends cdk.Stack {
         value: hostedZone.hostedZoneId,
       });
       new cdk.CfnOutput(this, 'NameServers', {
-        // CDK가 자동으로 fn::Join 처리. 가비아에 입력할 4개 NS.
         value: cdk.Fn.join(', ', hostedZone.hostedZoneNameServers ?? []),
         description: 'Put these into Gabia "타사 네임서버" field (one per slot)',
+      });
+    }
+
+    // ── CloudFront + HTTPS (도메인 + 인증서 모두 있을 때) ──
+    if (props.domainName && props.certificateArn && hostedZone) {
+      const certificate = acm.Certificate.fromCertificateArn(
+        this, 'ImportedCertificate', props.certificateArn,
+      );
+
+      // apex (chaeuda.co.kr) → www.chaeuda.co.kr 301 리다이렉트용 CloudFront Function
+      const apexRedirectFn = new cloudfront.Function(this, 'ApexToWwwRedirect', {
+        code: cloudfront.FunctionCode.fromInline(`
+          function handler(event) {
+            var request = event.request;
+            var host = request.headers.host && request.headers.host.value;
+            if (host === '${props.domainName}') {
+              return {
+                statusCode: 301,
+                statusDescription: 'Moved Permanently',
+                headers: {
+                  location: { value: 'https://www.${props.domainName}' + request.uri }
+                }
+              };
+            }
+            return request;
+          }
+        `),
+      });
+
+      // CloudFront는 origin으로 IP 직접 못 받음 → origin.chaeuda.co.kr A 레코드를 EIP로 매핑
+      const originHostname = `origin.${props.domainName}`;
+      new route53.ARecord(this, 'OriginAlias', {
+        zone: hostedZone,
+        recordName: 'origin',
+        target: route53.RecordTarget.fromIpAddresses(eip.ref),
+      });
+
+      const ec2Origin = new origins.HttpOrigin(originHostname, {
+        protocolPolicy: cloudfront.OriginProtocolPolicy.HTTP_ONLY,
+        readTimeout: cdk.Duration.seconds(60),
+        keepaliveTimeout: cdk.Duration.seconds(5),
+      });
+
+      const distribution = new cloudfront.Distribution(this, 'Distribution', {
+        comment: 'Chaeuda by design - prod',
+        domainNames: [props.domainName, `www.${props.domainName}`],
+        certificate,
+        defaultRootObject: '',
+        priceClass: cloudfront.PriceClass.PRICE_CLASS_200, // 일본·한국 캐시 포함
+        defaultBehavior: {
+          origin: ec2Origin,
+          viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
+          allowedMethods: cloudfront.AllowedMethods.ALLOW_ALL,
+          cachePolicy: cloudfront.CachePolicy.CACHING_DISABLED, // 동적 페이지 — 캐싱 X
+          originRequestPolicy: cloudfront.OriginRequestPolicy.ALL_VIEWER,
+          functionAssociations: [{
+            function: apexRedirectFn,
+            eventType: cloudfront.FunctionEventType.VIEWER_REQUEST,
+          }],
+        },
+      });
+
+      // Route 53 A 레코드 (apex + www) → CloudFront alias
+      new route53.ARecord(this, 'ApexAlias', {
+        zone: hostedZone,
+        recordName: undefined,
+        target: route53.RecordTarget.fromAlias(
+          new route53Targets.CloudFrontTarget(distribution),
+        ),
+      });
+      new route53.ARecord(this, 'WwwAlias', {
+        zone: hostedZone,
+        recordName: 'www',
+        target: route53.RecordTarget.fromAlias(
+          new route53Targets.CloudFrontTarget(distribution),
+        ),
+      });
+
+      new cdk.CfnOutput(this, 'CloudFrontDomain', {
+        value: distribution.distributionDomainName,
+      });
+      new cdk.CfnOutput(this, 'SiteUrl', {
+        value: `https://www.${props.domainName}`,
       });
     }
 
