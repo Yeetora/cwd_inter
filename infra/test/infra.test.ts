@@ -3,10 +3,11 @@ import { Template, Match } from 'aws-cdk-lib/assertions';
 import { ChaeudaInfraStack } from '../lib/chaeuda-infra-stack';
 
 describe('ChaeudaInfraStack', () => {
-  function synth(): Template {
+  function synth(opts: { domain?: string } = {}): Template {
     const app = new cdk.App();
     const stack = new ChaeudaInfraStack(app, 'TestStack', {
       env: { account: '123456789012', region: 'ap-northeast-2' },
+      domainName: opts.domain,
     });
     return Template.fromStack(stack);
   }
@@ -95,5 +96,18 @@ describe('ChaeudaInfraStack', () => {
   test('creates Elastic IP', () => {
     const t = synth();
     t.resourceCountIs('AWS::EC2::EIP', 1);
+  });
+
+  test('no hosted zone when domainName not provided', () => {
+    const t = synth();
+    t.resourceCountIs('AWS::Route53::HostedZone', 0);
+  });
+
+  test('creates Route 53 hosted zone when domainName given', () => {
+    const t = synth({ domain: 'chaeuda.co.kr' });
+    t.resourceCountIs('AWS::Route53::HostedZone', 1);
+    t.hasResourceProperties('AWS::Route53::HostedZone', {
+      Name: 'chaeuda.co.kr.',
+    });
   });
 });

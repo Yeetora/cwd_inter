@@ -2,12 +2,13 @@ import * as cdk from 'aws-cdk-lib/core';
 import { Construct } from 'constructs';
 import * as ec2 from 'aws-cdk-lib/aws-ec2';
 import * as iam from 'aws-cdk-lib/aws-iam';
+import * as route53 from 'aws-cdk-lib/aws-route53';
 import * as s3 from 'aws-cdk-lib/aws-s3';
 import * as fs from 'fs';
 import * as path from 'path';
 
 export interface ChaeudaInfraStackProps extends cdk.StackProps {
-  /** 운영 도메인 (Route 53 추가는 별도 PR) */
+  /** 운영 도메인 (Phase 1: Route 53 hosted zone만 생성). 미지정 시 도메인 리소스 생성 안 함. */
   readonly domainName?: string;
 }
 
@@ -153,6 +154,25 @@ export class ChaeudaInfraStack extends cdk.Stack {
       domain: 'vpc',
       instanceId: this.instance.instanceId,
     });
+
+    // ── Route 53 Hosted Zone (Phase 1 — DNS only) ─────
+    // ACM 인증서 + CloudFront는 별도 PR에서 추가 (NS 전파 후).
+    let hostedZone: route53.IHostedZone | undefined;
+    if (props.domainName) {
+      hostedZone = new route53.PublicHostedZone(this, 'HostedZone', {
+        zoneName: props.domainName,
+        comment: 'Chaeuda by design - production DNS',
+      });
+
+      new cdk.CfnOutput(this, 'HostedZoneId', {
+        value: hostedZone.hostedZoneId,
+      });
+      new cdk.CfnOutput(this, 'NameServers', {
+        // CDK가 자동으로 fn::Join 처리. 가비아에 입력할 4개 NS.
+        value: cdk.Fn.join(', ', hostedZone.hostedZoneNameServers ?? []),
+        description: 'Put these into Gabia "타사 네임서버" field (one per slot)',
+      });
+    }
 
     // ── Outputs ────────────────────────────────────────
     new cdk.CfnOutput(this, 'InstanceId', {
