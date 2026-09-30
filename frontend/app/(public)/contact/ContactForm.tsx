@@ -288,7 +288,7 @@ export default function ContactForm({ config }: { config: PublicEstimateConfig |
       {step === "contact" && (
         <form onSubmit={onSubmit} className="space-y-5">
           {!direct && result && (
-            <div className="border border-border bg-surface-alt/60 px-4 py-3 text-sm">
+            <div className="border border-border bg-surface-warm/60 px-4 py-3 text-sm">
               <span className="text-muted">예상 견적 </span>
               <span className="font-medium">{resultText(result)}</span>
               <span className="text-muted"> 기준으로 상담을 신청합니다.</span>
@@ -362,7 +362,7 @@ function EstimateSummary({
   optionLines: string[];
 }) {
   return (
-    <div className="border border-border bg-surface-alt/60 px-6 py-8">
+    <div className="border border-border bg-surface-warm/60 px-6 py-8">
       <p className="text-xs tracking-[0.2em] text-muted">예상 견적</p>
       <p className="mt-3 text-2xl font-light leading-snug md:text-3xl">{resultText(result)}</p>
       <dl className="mt-6 space-y-1 text-sm">
