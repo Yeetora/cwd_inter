@@ -1,9 +1,9 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
+import SiteLogo from "./SiteLogo";
 
 const NAV_ITEMS = [
   { label: "Home", href: "/" },
@@ -50,7 +50,13 @@ function NavLabel({ label, active }: { label: string; active: boolean }) {
   );
 }
 
-export default function Header({ instagramUrl }: { instagramUrl: string | null }) {
+export default function Header({
+  instagramUrl,
+  logoUrl,
+}: {
+  instagramUrl: string | null;
+  logoUrl: string | null;
+}) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const [projectOpen, setProjectOpen] = useState(false);
@@ -105,14 +111,12 @@ export default function Header({ instagramUrl }: { instagramUrl: string | null }
       }`}
     >
       <div className="mx-auto flex h-28 max-w-7xl items-center justify-between px-4 md:h-40 md:px-8">
-        <Link href="/" className="flex items-center" aria-label="채우다 by design 홈으로">
-          <Image
-            src="/chaeuda-logo.png"
-            alt="채우다 by design"
-            width={1536}
-            height={1024}
+        <Link href="/" className="flex min-w-0 max-w-[70%] items-center md:max-w-none" aria-label="채우다 by design 홈으로">
+          <SiteLogo
+            logoUrl={logoUrl}
             priority
-            className="h-24 w-auto md:h-36"
+            defaultClassName="h-24 w-auto md:h-36"
+            uploadedClassName="h-12 md:h-16"
           />
         </Link>
 
